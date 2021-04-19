@@ -124,7 +124,7 @@ class DBProvider {
 
   Future<List<AccountStatement>> getStatementByAccountId(int accountId) async {
     final db = await database;
-    var res  = await  db.query("AccountStatement", where: "account_id = ?", whereArgs: [accountId]);
+    var res  = await  db.query("AccountStatement", where: "account_id = ?", whereArgs: [accountId], orderBy: "id  DESC");
     List<AccountStatement> list =
     res.isNotEmpty ? res.map((c) => AccountStatement.fromMap(c)).toList() : [];
     return list;

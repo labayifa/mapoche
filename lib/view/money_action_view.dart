@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:ma_poche/dbrequest/dbprovider.dart';
+import 'package:ma_poche/helpers/account.dart';
+import 'package:ma_poche/helpers/account_statement.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MoneyActionView extends StatefulWidget {
   @override
@@ -27,6 +31,8 @@ class _MoneyActionViewState extends State<MoneyActionView>
 
   String _gender = "Revenu";
 
+  int _accountId;
+
   @override
   void initState() {
      _startDateText = "Choisir une date";
@@ -34,9 +40,27 @@ class _MoneyActionViewState extends State<MoneyActionView>
 
      _startDate = DateTime.now();
 
+     _setDataState();
+
      _gender = "Revenu";
     _controller = AnimationController(vsync: this);
+
     super.initState();
+  }
+  Account _account;
+
+  void _setDataState() async{
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    int res = prefs.getInt('account_id');
+    if(res > 0){
+      final result = await DBProvider.db.getAccountById(res);
+      setState(() {
+        _accountId = res;
+        _account = result;
+      });
+    }else{
+      Navigator.pushNamed(context, '/signup');
+    }
   }
 
   @override
@@ -302,13 +326,28 @@ class _MoneyActionViewState extends State<MoneyActionView>
                                       color: Colors.white
                                   ),
                                 ),
-                                onTap: (){
+                                onTap: () async{
                                   // Navigator.push(
                                   //   context,
                                   //   MaterialPageRoute(builder: (context) => RechargeWalletViewPage()),
                                   // );
                                   print("Helo");
-                                  print([_gender, _controlleAmount.text, _controllerLib.text, _startDate]);
+                                  double amount  = double.parse(_controlleAmount.text);
+                                  print([_gender, _controlleAmount.text, _controllerLib.text, _startDate, _account.value]);
+                                  String libelle = _controllerLib.text;
+                                  Account account;
+                                  if(_gender.compareTo("Revenu") ==0 && amount > 0 && libelle.length >=3){
+                                    AccountStatement accountStatement = AccountStatement(accountId: _accountId, solde: _account.value + amount, debit: 0, credit: amount, lib: _controllerLib.text, dateOps: _startDate.millisecondsSinceEpoch);
+                                    account = Account(id: _account.id, userId: _account.userId, value: _account.value + amount, lastValue: _account.value, creationDateTime: _account.creationDateTime, updateDateTime: DateTime.now().millisecondsSinceEpoch);
+                                    final response = await DBProvider.db.newStatement(accountStatement, account);
+                                    print(response.toString());
+                                  }else if(_gender.compareTo("Dépense") ==0 && amount > 0 && libelle.length >=3){
+                                    AccountStatement accountStatement = AccountStatement(accountId: _accountId, solde: _account.value - amount, debit: amount, credit: 0, lib: _controllerLib.text, dateOps: _startDate.millisecondsSinceEpoch);
+                                    account = Account(id: _account.id, userId: _account.userId, value: _account.value - amount, lastValue: _account.value, creationDateTime: _account.creationDateTime, updateDateTime: DateTime.now().millisecondsSinceEpoch);
+                                    final response = await DBProvider.db.newStatement(accountStatement, account);
+                                    print(response.toString());
+                                  }
+                                  _setDataState();
                                 },
                               ),
                             ),
